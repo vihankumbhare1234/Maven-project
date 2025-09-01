@@ -1,24 +1,41 @@
-node {
+// Declarative
+
+pipeline {
+  agent any
+
+  tools {
+    maven 'Maven'        // Name defined in Manage Jenkins → Tools
+    jdk 'jdk-24'       // Optional if you configured a JDK tool
+  }
+
+  triggers {
+    // Uses GitHub Webhook if configured
+    githubPush()
+    // pollSCM('H/2 * * * *') // Uncomment if you prefer polling
+  }
+
+  stages {
     stage('Checkout') {
-        checkout([$class: 'GitSCM',
-                  branches: [[name: '*/main']],
-                  userRemoteConfigs: [[url: 'https://github.com/keyurpatil06/jenkins-test.git']]
-        ])
+      steps {
+        checkout scm
+      }
     }
-
     stage('Build') {
-        withEnv(["JAVA_HOME=${tool 'JDK17'}", "PATH+JAVA=${tool 'JDK17'}/bin", "PATH+MAVEN=${tool 'maven'}/bin"]) {
-            sh 'mvn clean package'
-        }
+      steps {
+        bat 'mvn -q clean package'
+      }
     }
+    stage('Run') {
+      steps {
+        bat 'java -jar target\\your-artifact-name.jar'
+        // Example: bat 'java -jar target\\simple-java-app-1.0.0.jar'
+      }
+    }
+  }
 
-    stage('Test') {
-        withEnv(["JAVA_HOME=${tool 'JDK17'}", "PATH+JAVA=${tool 'JDK17'}/bin", "PATH+MAVEN=${tool 'maven'}/bin"]) {
-            sh 'mvn test'
-        }
+  post {
+    always {
+      archiveArtifacts artifacts: 'target\\*.jar', fingerprint: true
     }
-
-    stage('Archive') {
-        archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
-    }
+  }
 }
